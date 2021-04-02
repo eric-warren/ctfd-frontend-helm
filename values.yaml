@@ -1,0 +1,7 @@
+frontend:
+  image: ctfd/ctfd:latest
+  db_user: ctfd
+  db_pass: ctfd
+  db_host: 172.16.199.224
+  db_name: ctfd
+  redis_host: 172.16.199.224

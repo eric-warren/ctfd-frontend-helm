@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ctfd-frontend-deployment
+  namespace: frontend
+  labels:
+    app: ctfd-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ctfd-frontend
+  template:
+    metadata:
+      labels:
+        app: ctfd-frontend
+    spec:
+      volumes:
+        - name: ctfd-frontend-deployment-uploads-volume
+          persistentVolumeClaim:
+            claimName: upload-pvc
+      containers:
+      - name: ctfd
+        image: {{ .frontend.image }}
+        imagePullPolicy: IfNotPresent
+        env:
+          - name: UPLOAD_FOLDER
+            value: "/var/uploads"
+          - name: DATABASE_URL
+            value: mysql+pymysql://{{ .frontend.db_user }}:{{ .frontend.db_pass }}@{{ .frontend.db_host }}/{{ .frontend.db_name }}
+          - name: REDIS_URL
+            value: redis://{{ .frontend.redis_host }}:6379
+          - name: WORKERS
+            value: "1"
+          - name: LOG_FOLDER
+            value: "/var/log/CTFd"
+          - name: ACCESS_LOG
+            value: "-"
+          - name: ERROR_LOG
+            value: "-"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ctfd-frontend-service
+  namespace: frontend
+spec:
+  selector:
+    app: ctfd-frontend
+  type: LoadBalancer
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+      nodePort: 30000
+
