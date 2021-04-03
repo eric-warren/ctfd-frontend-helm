@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: upload-pvc
+spec:
+{{ if eq .Values.provider "local" }}
+  storageClassName: manual
+{{ end }}
+{{ if eq .Values.provider "DO" }}
+  storageClassName: do-block-storage
+{{ end }}
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi

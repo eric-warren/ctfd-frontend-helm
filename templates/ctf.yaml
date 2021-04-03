@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ctfd-frontend-deployment
-  namespace: frontend
   labels:
     app: ctfd-frontend
 spec:
@@ -21,15 +20,18 @@ spec:
             claimName: upload-pvc
       containers:
       - name: ctfd
-        image: {{ .frontend.image }}
+        image: {{ .Values.frontend.image }}
         imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - mountPath: "/var/uploads"
+          name: ctfd-frontend-deployment-uploads-volume
         env:
           - name: UPLOAD_FOLDER
             value: "/var/uploads"
           - name: DATABASE_URL
-            value: mysql+pymysql://{{ .frontend.db_user }}:{{ .frontend.db_pass }}@{{ .frontend.db_host }}/{{ .frontend.db_name }}
+            value: mysql+pymysql://{{ .Values.frontend.db_user }}:{{ .Values.frontend.db_pass }}@{{ .Values.frontend.db_host }}:{{ .Values.frontend.db_port }}/{{ .Values.frontend.db_name }}
           - name: REDIS_URL
-            value: redis://{{ .frontend.redis_host }}:6379
+            value: rediss://{{ .Values.frontend.redis_user }}:{{ .Values.frontend.redis_pass }}@{{ .Values.frontend.redis_host }}:{{ .Values.frontend.redis_port }}
           - name: WORKERS
             value: "1"
           - name: LOG_FOLDER
@@ -43,14 +45,42 @@ apiVersion: v1
 kind: Service
 metadata:
   name: ctfd-frontend-service
-  namespace: frontend
 spec:
   selector:
     app: ctfd-frontend
-  type: LoadBalancer
   ports:
-    - protocol: TCP
-      port: 8000
+    - port: 80
       targetPort: 8000
-      nodePort: 30000
-
+---
+apiVersion: v1
+data:
+  tls.crt: {{ .Values.frontend.tls.cert }}
+  tls.key: {{ .Values.frontend.tls.key }}
+kind: Secret
+metadata:
+  name: ctfd-frontend-tls
+type: kubernetes.io/tls
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ctfd-frontend-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/affinity: cookie
+spec:
+  tls:
+  - hosts:
+    - {{ .Values.frontend.domain }}
+    secretName: ctfd-frontend-tls
+  rules:
+  - host: {{ .Values.frontend.domain }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ctfd-frontend-service
+            port: 
+              number: 80
